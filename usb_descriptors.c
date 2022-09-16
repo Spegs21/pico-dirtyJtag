@@ -24,7 +24,7 @@
  */
 
 #include "tusb.h"
-#include "get_serial.h"
+#include "pico/unique_id.h"
 
 
 //--------------------------------------------------------------------+
@@ -93,6 +93,8 @@ uint8_t const * tud_descriptor_configuration_cb(uint8_t index)
 // String Descriptors
 //--------------------------------------------------------------------+
 
+char usb_serial[2 * PICO_UNIQUE_BOARD_ID_SIZE_BYTES + 1];
+
 // array of pointer to string descriptors
 char const* string_desc_arr [] =
 {
@@ -118,6 +120,8 @@ uint16_t const* tud_descriptor_string_cb(uint8_t index, uint16_t langid)
     chr_count = 1;
   }else
   {
+    if (index == 3) pico_get_unique_board_id_string(usb_serial, sizeof(usb_serial));
+
     // Convert ASCII string into UTF-16
 
     if ( !(index < sizeof(string_desc_arr)/sizeof(string_desc_arr[0])) ) return NULL;

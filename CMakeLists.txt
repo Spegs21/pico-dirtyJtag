@@ -25,7 +25,6 @@ add_executable(dirtyJtag
 		dirtyJtag.c
 		usb_descriptors.c
 		pio_jtag.c
-		get_serial.c
 		cmd.c
 )
 
