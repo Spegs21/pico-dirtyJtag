@@ -5,11 +5,7 @@
 
 void jtag_task();//to process USB OUT packets while waiting for DMA to finish
 
-#define DMA
-
-
 #ifdef DMA
-
 static int tx_dma_chan = -1;
 static int rx_dma_chan;
 static dma_channel_config tx_c;
@@ -54,7 +50,6 @@ void dma_init()
             );
     }
 #endif
-
 }
 
 
@@ -167,7 +162,7 @@ uint8_t __time_critical_func(pio_jtag_write_tms_blocking)(const pio_jtag_inst_t 
     io_rw_8 *rxfifo = (io_rw_8 *) &jtag->pio->rxf[jtag->sm];
     uint8_t x; // scratch local to receive data
     uint8_t tdi_word = tdi ? 0xFF : 0x0;
-    gpio_put(jtag->pin_tms, tms);
+    gpio_put(jtag->pins->tms, tms);
     //kick off the process by sending the len to the tx pipeline
     *(io_rw_32*)txfifo = len-1;
 #ifdef DMA
@@ -213,40 +208,28 @@ uint8_t __time_critical_func(pio_jtag_write_tms_blocking)(const pio_jtag_inst_t 
     return x;
 }
 
-static void init_pins(uint pin_tck, uint pin_tdi, uint pin_tdo, uint pin_tms, uint pin_rst, uint pin_trst)
+void init_jtag(pio_jtag_inst_t* jtag)
 {
-    gpio_clr_mask((1u << pin_tms) | (1u << pin_rst) | (1u << pin_trst));
-    gpio_init_mask((1u << pin_tms) | (1u << pin_rst) | (1u << pin_trst));
-    gpio_set_dir_masked( (1u << pin_tms) | (1u << pin_rst) | (1u << pin_trst), 0xffffffffu);
-}
+    gpio_clr_mask((1u << jtag->pins->tms) | (1u << jtag->pins->rst) | (1u << jtag->pins->trst));
+    gpio_init_mask((1u << jtag->pins->tms) | (1u << jtag->pins->rst) | (1u << jtag->pins->trst));
+    gpio_set_dir_masked( (1u << jtag->pins->tms) | (1u << jtag->pins->rst) | (1u << jtag->pins->trst), 0xffffffffu);
 
-
-
-void init_jtag(pio_jtag_inst_t* jtag, uint freq, uint pin_tck, uint pin_tdi, uint pin_tdo, uint pin_tms, uint pin_rst, uint pin_trst)
-{
-    init_pins(pin_tck, pin_tdi, pin_tdo, pin_tms, pin_rst, pin_trst);
-    jtag->pin_tdi = pin_tdi;
-    jtag->pin_tdo = pin_tdo;
-    jtag->pin_tck = pin_tck;
-    jtag->pin_tms = pin_tms;
-    jtag->pin_rst = pin_rst;
-    jtag->pin_trst = pin_trst;
     uint16_t clkdiv = 31;  // around 1 MHz @ 125MHz clk_sys
     pio_jtag_init(jtag->pio, jtag->sm,
                     clkdiv,
-                    pin_tck,
-                    pin_tdi,
-                    pin_tdo
+                    jtag->pins->tck,
+                    jtag->pins->tdi,
+                    jtag->pins->tdo
                  );
 
-    jtag_set_clk_freq(jtag, freq);
+    jtag_set_clk_freq(jtag);
 }
 
-void jtag_set_clk_freq(const pio_jtag_inst_t *jtag, uint freq_khz) {
+void jtag_set_clk_freq(const pio_jtag_inst_t *jtag) {
     uint clk_sys_freq_khz = clock_get_hz(clk_sys) / 1000;
-    uint32_t divider = (clk_sys_freq_khz / freq_khz) / 4;
+    uint32_t divider = (clk_sys_freq_khz / jtag->freq_khz) / 4;
     divider = (divider < 2) ? 2 : divider; //max reliable freq 
-    pio_sm_set_clkdiv_int_frac(pio0, jtag->sm, divider, 0);
+    pio_sm_set_clkdiv_int_frac(jtag->pio, jtag->sm, divider, 0);
 }
 
 void jtag_transfer(const pio_jtag_inst_t *jtag, uint32_t length, const uint8_t* in, uint8_t* out)

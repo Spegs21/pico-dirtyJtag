@@ -4,19 +4,25 @@
 
 #include "hardware/pio.h"
 
-typedef struct pio_jtag_inst {
+#define DMA
+
+typedef struct 
+{
     PIO pio;
-    uint sm;
-    uint pin_tdi;
-    uint pin_tdo;
-    uint pin_tck;
-    uint pin_tms;
-    uint pin_rst;
-    uint pin_trst;
+    uint8_t sm;
+    uint16_t freq_khz;
+    struct pins
+    {
+        uint8_t tdi;
+        uint8_t tdo;
+        uint8_t tck;
+        uint8_t tms;
+        uint8_t rst;
+        uint8_t trst;
+    }
 } pio_jtag_inst_t;
 
-
-void init_jtag(pio_jtag_inst_t* jtag, uint freq, uint pin_tck, uint pin_tdi, uint pin_tdo, uint pin_tms, uint pin_rst, uint pin_trst);
+void init_jtag(pio_jtag_inst_t* jtag);
 
 void pio_jtag_write_blocking(const pio_jtag_inst_t *jtag, const uint8_t *src, size_t len);
 
@@ -24,7 +30,7 @@ void pio_jtag_write_read_blocking(const pio_jtag_inst_t *jtag, const uint8_t *sr
 
 uint8_t pio_jtag_write_tms_blocking(const pio_jtag_inst_t *jtag, bool tdi, bool tms, size_t len);
 
-void jtag_set_clk_freq(const pio_jtag_inst_t *jtag, uint freq_khz);
+void jtag_set_clk_freq(const pio_jtag_inst_t *jtag);
 
 void jtag_transfer(const pio_jtag_inst_t *jtag, uint32_t length, const uint8_t* in, uint8_t* out);
 

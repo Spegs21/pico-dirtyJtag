@@ -30,7 +30,7 @@
 #include "jtag.pio.h"
 #include "tusb.h"
 #include "pio_jtag.h"
-#include "cmd.h"
+#include "dirtyJtag_cmd.h"
 
 
 enum CommandIdentifier {
