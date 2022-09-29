@@ -183,7 +183,7 @@ void cmd_handle(pio_jtag_inst_t* jtag, uint8_t* rxbuf, uint32_t count, uint8_t* 
     case CMD_GOTOBOOTLOADER:
       cmd_gotobootloader();
       break;
-      
+
     default:
       return; /* Unsupported command, halt */
       break;
@@ -202,7 +202,8 @@ static void cmd_info() {
 }
 
 static void cmd_freq(pio_jtag_inst_t* jtag, const uint8_t *commands) {
-  jtag_set_clk_freq(jtag, (commands[1] << 8) | commands[2]);
+  jtag->freq_khz = (commands[1] << 8) | commands[2];
+  jtag_set_clk_freq(jtag);
 }
 
 //static uint8_t output_buffer[64];
@@ -230,11 +231,10 @@ static void cmd_xfer(pio_jtag_inst_t* jtag, const uint8_t *commands, bool extend
 
   /* Send the transfer response back to host */
   if (!no_read) {
-    tud_vendor_write(output_buffer, (transferred_bits + 7)/8);
+    tud_vendor_write(output_buffer, 32);
+    //tud_vendor_write(output_buffer, (transferred_bits + 7)/8);
   }
 }
-
-
 
 static void cmd_setsig(pio_jtag_inst_t* jtag, const uint8_t *commands) {
   uint8_t signal_mask, signal_status;
@@ -254,12 +254,12 @@ static void cmd_setsig(pio_jtag_inst_t* jtag, const uint8_t *commands) {
     jtag_set_tms(jtag, signal_status & SIG_TMS);
   }
   
-  if (signal_mask & SIG_TRST) {
+  if ((signal_mask & SIG_TRST) && jtag->trst.available) {
     jtag_set_trst(jtag, signal_status & SIG_TRST);
   }
 
-  if (signal_mask & SIG_SRST) {
-    jtag_set_rst(jtag, signal_status & SIG_SRST);
+  if ((signal_mask & SIG_SRST) && jtag->srst.available) {
+    jtag_set_srst(jtag, signal_status & SIG_SRST);
   }
 }
 

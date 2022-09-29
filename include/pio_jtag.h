@@ -8,21 +8,36 @@
 
 typedef struct 
 {
+    uint8_t num;
+    bool available;
+    bool active_lvl;
+} rst_pin_t;
+
+typedef struct 
+{
     PIO pio;
     uint8_t sm;
     uint16_t freq_khz;
-    struct pins
+    struct 
     {
         uint8_t tdi;
         uint8_t tdo;
         uint8_t tck;
         uint8_t tms;
-        uint8_t rst;
-        uint8_t trst;
-    }
+    } pins;
+    rst_pin_t srst;
+    rst_pin_t trst;
 } pio_jtag_inst_t;
 
+typedef enum
+{
+    PIO_JTAG_TRST,
+    PIO_JTAG_SRST
+} pio_jtag_rst_t;
+
 void init_jtag(pio_jtag_inst_t* jtag);
+
+void init_rst(pio_jtag_inst_t* jtag, pio_jtag_rst_t rst, uint8_t pin, bool active_lvl);
 
 void pio_jtag_write_blocking(const pio_jtag_inst_t *jtag, const uint8_t *src, size_t len);
 
@@ -34,20 +49,24 @@ void jtag_set_clk_freq(const pio_jtag_inst_t *jtag);
 
 void jtag_transfer(const pio_jtag_inst_t *jtag, uint32_t length, const uint8_t* in, uint8_t* out);
 
-uint8_t jtag_strobe(const pio_jtag_inst_t *jtag, uint32_t length, bool tms, bool tdi);
-
+static inline uint8_t jtag_strobe(const pio_jtag_inst_t *jtag, uint32_t length, bool tms, bool tdi)
+{
+    return pio_jtag_write_tms_blocking(jtag, tdi, tms, length);
+}
 
 static inline void jtag_set_tms(const pio_jtag_inst_t *jtag, bool value)
 {
-    gpio_put(jtag->pin_tms, value);
+    gpio_put(jtag->pins.tms, value);
 }
-static inline void jtag_set_rst(const pio_jtag_inst_t *jtag, bool value)
+
+static inline void jtag_set_srst(const pio_jtag_inst_t *jtag, bool value)
 {
-    gpio_put(jtag->pin_rst, value);
+    gpio_put(jtag->srst.num, !(value ^ jtag->srst.active_lvl) & 1);
 }
+
 static inline void jtag_set_trst(const pio_jtag_inst_t *jtag, bool value)
 {
-    gpio_put(jtag->pin_trst, value);
+    gpio_put(jtag->trst.num, !(value ^ jtag->trst.active_lvl) & 1);
 }
 
 // The following APIs assume that they are called in the following order:
@@ -59,7 +78,5 @@ void jtag_set_tdi(const pio_jtag_inst_t *jtag, bool value);
 void jtag_set_clk(const pio_jtag_inst_t *jtag, bool value);
 
 bool jtag_get_tdo(const pio_jtag_inst_t *jtag);
-
-
 
 #endif

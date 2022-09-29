@@ -162,7 +162,7 @@ uint8_t __time_critical_func(pio_jtag_write_tms_blocking)(const pio_jtag_inst_t 
     io_rw_8 *rxfifo = (io_rw_8 *) &jtag->pio->rxf[jtag->sm];
     uint8_t x; // scratch local to receive data
     uint8_t tdi_word = tdi ? 0xFF : 0x0;
-    gpio_put(jtag->pins->tms, tms);
+    gpio_put(jtag->pins.tms, tms);
     //kick off the process by sending the len to the tx pipeline
     *(io_rw_32*)txfifo = len-1;
 #ifdef DMA
@@ -208,21 +208,42 @@ uint8_t __time_critical_func(pio_jtag_write_tms_blocking)(const pio_jtag_inst_t 
     return x;
 }
 
-void init_jtag(pio_jtag_inst_t* jtag)
+static void init_output(uint8_t pin, bool init_value)
 {
-    gpio_clr_mask((1u << jtag->pins->tms) | (1u << jtag->pins->rst) | (1u << jtag->pins->trst));
-    gpio_init_mask((1u << jtag->pins->tms) | (1u << jtag->pins->rst) | (1u << jtag->pins->trst));
-    gpio_set_dir_masked( (1u << jtag->pins->tms) | (1u << jtag->pins->rst) | (1u << jtag->pins->trst), 0xffffffffu);
+    gpio_put(pin, init_value);
+    gpio_init(pin);
+    gpio_set_dir(pin, true);
+}
 
-    uint16_t clkdiv = 31;  // around 1 MHz @ 125MHz clk_sys
+void init_jtag(pio_jtag_inst_t* jtag)
+{ 
+    init_output(jtag->pins.tms, 0);
+    uint16_t clkdiv = 32;  // around 1 MHz @ 125MHz clk_sys
     pio_jtag_init(jtag->pio, jtag->sm,
-                    clkdiv,
-                    jtag->pins->tck,
-                    jtag->pins->tdi,
-                    jtag->pins->tdo
+                  clkdiv,
+                  jtag->pins.tck,
+                  jtag->pins.tdi,
+                  jtag->pins.tdo
                  );
 
     jtag_set_clk_freq(jtag);
+}
+
+void init_rst(pio_jtag_inst_t* jtag, pio_jtag_rst_t rst, uint8_t pin, bool active_lvl)
+{
+    if (rst == PIO_JTAG_TRST)
+    {
+        jtag->trst.num = pin;
+        jtag->trst.active_lvl = active_lvl;
+        jtag->trst.available = true;
+    }
+    else
+    {
+        jtag->srst.num = pin;
+        jtag->srst.active_lvl = active_lvl;
+        jtag->srst.available = true;
+    }
+    init_output(pin, !active_lvl);
 }
 
 void jtag_set_clk_freq(const pio_jtag_inst_t *jtag) {
@@ -243,13 +264,6 @@ void jtag_transfer(const pio_jtag_inst_t *jtag, uint32_t length, const uint8_t* 
         pio_jtag_write_blocking(jtag, in, length);
 
 }
-
-uint8_t jtag_strobe(const pio_jtag_inst_t *jtag, uint32_t length, bool tms, bool tdi)
-{
-    return pio_jtag_write_tms_blocking(jtag, tdi, tms, length);
-}
-
-
 
 static uint8_t toggle_bits_out_buffer[4];
 static uint8_t toggle_bits_in_buffer[4];
@@ -272,5 +286,3 @@ bool jtag_get_tdo(const pio_jtag_inst_t *jtag)
 {
     return !! toggle_bits_in_buffer[0];
 }
-
-
